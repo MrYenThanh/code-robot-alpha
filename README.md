@@ -18,7 +18,7 @@ Open it, stare at it, feel productive without doing anything.
 
 ```bash
 # 1. Clone it
-git clone https://github.com/your-username/code-robot-alpha.git
+git clone https://github.com/MrYenThanh/code-robot-alpha.git
 
 # 2. Open index.html in your browser
 # 3. Look busy
