@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Code-Robot-ALPHA — AI Code Agent</title>
+
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100vw; height: 100vh; overflow: hidden; background: #0d1117; color: #c9d1d9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+
+.ide { width: 100vw; height: 100vh; display: grid; grid-template-rows: 38px 1fr 24px; overflow: hidden; }
+
+/* title bar */
+.titlebar { background: #161b22; border-bottom: 1px solid #21262d; display: flex; align-items: center; padding: 0 14px; gap: 10px; user-select: none; flex-shrink: 0; }
+.traffic { display: flex; gap: 7px; }
+.tl { width: 12px; height: 12px; border-radius: 50%; }
+.tl.r { background: #ff5f57; } .tl.y { background: #febc2e; } .tl.g { background: #28c840; }
+.tabs { display: flex; margin-left: 16px; height: 100%; align-items: flex-end; }
+.tab { padding: 0 15px; height: 30px; font-size: 12px; color: #6e7681; border-radius: 6px 6px 0 0; border: 1px solid transparent; border-bottom: none; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+.tab.active { background: #0d1117; color: #e6edf3; border-color: #21262d; }
+.tab-dot { width: 6px; height: 6px; border-radius: 50%; background: #58a6ff; }
+.title-center { flex: 1; text-align: center; font-size: 12px; color: #3d444d; }
+
+/* main layout */
+.main { display: grid; grid-template-columns: 48px 200px 1fr 320px; overflow: hidden; min-height: 0; }
+
+/* activity bar */
+.actbar { background: #161b22; border-right: 1px solid #21262d; display: flex; flex-direction: column; align-items: center; padding: 6px 0; gap: 2px; }
+.ai { width: 34px; height: 34px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 17px; color: #484f58; cursor: pointer; }
+.ai.on { color: #e6edf3; background: #21262d; }
+
+/* sidebar */
+.sidebar { background: #161b22; border-right: 1px solid #21262d; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; }
+.sidebar::-webkit-scrollbar { display: none; }
+.sb-hdr { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: #484f58; font-weight: 600; padding: 10px 12px 5px; }
+.folder { display: flex; align-items: center; gap: 5px; padding: 3px 10px; font-size: 12px; color: #8b949e; cursor: pointer; user-select: none; }
+.fa { font-size: 8px; color: #484f58; }
+.ffile { display: flex; align-items: center; gap: 5px; padding: 3px 10px 3px 24px; font-size: 12px; color: #8b949e; cursor: pointer; font-family: Consolas, 'Courier New', 'Lucida Console', monospace; border-left: 2px solid transparent; }
+.ffile.on { background: #1f2937; color: #58a6ff; border-left-color: #58a6ff; }
+.sb-div { height: 1px; background: #21262d; margin: 6px 0; }
+
+/* editor area */
+.editor-area { display: grid; grid-template-rows: 1fr 175px; overflow: hidden; min-height: 0; }
+.editor { position: relative; display: flex; flex-direction: column; background: #0d1117; overflow: hidden; min-height: 0; }
+.breadcrumb { padding: 5px 16px; font-size: 11px; color: #484f58; font-family: Consolas, 'Courier New', 'Lucida Console', monospace; background: #0d1117; border-bottom: 1px solid #161b22; display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+.breadcrumb .bsep { color: #2d333b; }
+.breadcrumb .bcur { color: #8b949e; }
+.code-wrap { flex: 1; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; scrollbar-color: #21262d transparent; min-height: 0; }
+.code-wrap::-webkit-scrollbar { width: 4px; }
+.code-wrap::-webkit-scrollbar-thumb { background: #21262d; border-radius: 3px; }
+.code-inner { padding: 8px 0 80px; }
+
+/* code lines */
+.cln { display: flex; min-height: 19px; font-family: Consolas, 'Courier New', 'Lucida Console', monospace; font-size: 13px; line-height: 19px; color: #c9d1d9; }
+.cln-num { width: 52px; text-align: right; padding-right: 16px; color: #2d333b; font-size: 11.5px; user-select: none; flex-shrink: 0; }
+.cln.aln .cln-num { color: #6e7681; }
+.cln.aln { background: rgba(88,166,255,0.04); }
+.cln-code { flex: 1; padding-right: 68px; white-space: pre; color: #c9d1d9; }
+.cln.cur .cln-code::after { content: ''; display: inline-block; width: 2px; height: 13px; background: #58a6ff; vertical-align: text-bottom; margin-left: 1px; animation: blink 1.1s step-end infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+/* SYNTAX — all !important to prevent inheritance issues */
+.k  { color: #ff7b72 !important; }
+.fn { color: #d2a8ff !important; }
+.s  { color: #a5d6ff !important; }
+.n  { color: #79c0ff !important; }
+.cm { color: #484f58 !important; font-style: italic; }
+.ty { color: #ffa657 !important; }
+.pu { color: #8b949e !important; }
+.pl { color: #c9d1d9 !important; }
+.im { color: #ff7b72 !important; }
+.mo { color: #a5d6ff !important; }
+
+/* minimap */
+.minimap { position: absolute; right: 0; top: 28px; bottom: 0; width: 58px; background: #0a0f15; border-left: 1px solid #161b22; overflow: hidden; pointer-events: none; opacity: 0.55; }
+.mm { height: 2px; margin: 1.5px 6px; border-radius: 1px; }
+
+/* terminal */
+.terminal { border-top: 1px solid #21262d; background: #0d1117; display: flex; flex-direction: column; min-height: 0; }
+.term-tabs { display: flex; background: #161b22; border-bottom: 1px solid #21262d; padding: 0 12px; flex-shrink: 0; }
+.ttab { font-size: 11.5px; padding: 5px 13px; color: #6e7681; border-bottom: 2px solid transparent; cursor: pointer; }
+.ttab.on { color: #e6edf3; border-bottom-color: #58a6ff; }
+.term-body { flex: 1; padding: 7px 14px; font-family: Consolas, 'Courier New', 'Lucida Console', monospace; font-size: 12px; line-height: 18px; overflow-y: auto; color: #8b949e; scrollbar-width: none; }
+.term-body::-webkit-scrollbar { display: none; }
+.tp  { color: #3fb950 !important; }
+.tok { color: #3fb950 !important; }
+.tinf{ color: #58a6ff !important; }
+.twrn{ color: #d29922 !important; }
+.tdim{ color: #3d444d !important; }
+.tcmd{ color: #e6edf3 !important; }
+
+/* ════════════════════════════════
+   CHAT PANEL
+════════════════════════════════ */
+.chat-panel { background: #0d1117; border-left: 1px solid #21262d; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
+
+.chat-header { background: #161b22; border-bottom: 1px solid #21262d; padding: 10px 14px; display: flex; align-items: center; gap: 9px; flex-shrink: 0; }
+.chat-logo { width: 22px; height: 22px; background: linear-gradient(135deg, #58a6ff, #d2a8ff); border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0; color: white; }
+.chat-title { font-size: 13px; font-weight: 600; color: #e6edf3; }
+.chat-sub { font-size: 10px; color: #484f58; margin-top: 1px; }
+.chat-header-right { margin-left: auto; display: flex; gap: 6px; }
+.chi { width: 24px; height: 24px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 13px; color: #484f58; cursor: pointer; }
+.chi:hover { background: #21262d; color: #8b949e; }
+
+.chat-context { background: #161b22; border-bottom: 1px solid #21262d; padding: 6px 12px; display: flex; align-items: center; gap: 6px; flex-shrink: 0; flex-wrap: wrap; }
+.ctx-chip { display: flex; align-items: center; gap: 4px; background: #21262d; border: 1px solid #30363d; border-radius: 12px; padding: 2px 8px; font-size: 10.5px; color: #8b949e; cursor: pointer; }
+.ctx-dot { width: 6px; height: 6px; border-radius: 50%; background: #58a6ff; }
+
+.chat-messages { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 10px 0; scrollbar-width: thin; scrollbar-color: #21262d transparent; min-height: 0; }
+.chat-messages::-webkit-scrollbar { width: 3px; }
+.chat-messages::-webkit-scrollbar-thumb { background: #21262d; border-radius: 2px; }
+
+.msg-user { display: flex; justify-content: flex-end; padding: 4px 12px; }
+.msg-user-bubble { background: #1f6feb; color: #e6edf3 !important; border-radius: 12px 12px 3px 12px; padding: 7px 11px; font-size: 12.5px; line-height: 1.5; max-width: 90%; }
+.msg-user-bubble code { background: rgba(255,255,255,0.15); color: #e6edf3 !important; border-radius: 3px; padding: 1px 4px; font-family: Consolas, 'Courier New', 'Lucida Console', monospace; font-size: 11px; }
+
+.msg-ai { padding: 4px 12px 6px; }
+.msg-ai-hdr { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+.ai-av { width: 18px; height: 18px; background: linear-gradient(135deg, #58a6ff, #d2a8ff); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 9px; color: white; flex-shrink: 0; }
+.ai-nm { font-size: 11px; font-weight: 600; color: #58a6ff; }
+.ai-ts { font-size: 10px; color: #3d444d; }
+.msg-ai-body { font-size: 12.5px; line-height: 1.55; color: #8b949e; padding-left: 24px; }
+.msg-ai-body .hl { color: #c9d1d9; }
+.msg-ai-body b { color: #c9d1d9; font-weight: 500; }
+.msg-ai-body code { font-family: Consolas, 'Courier New', 'Lucida Console', monospace; font-size: 11px; color: #a5d6ff !important; background: #161b22; border: 1px solid #21262d; border-radius: 3px; padding: 1px 4px; }
+
+.code-block { margin: 6px 0 4px 24px; background: #161b22; border: 1px solid #21262d; border-radius: 6px; overflow: hidden; }
+.cb-hdr { display: flex; align-items: center; justify-content: space-between; padding: 5px 10px; background: #1c2128; border-bottom: 1px solid #21262d; font-size: 10.5px; color: #484f58; }
+.cb-lang { color: #58a6ff; font-weight: 500; }
+.cb-body { padding: 8px 10px; font-family: Consolas, 'Courier New', 'Lucida Console', monospace; font-size: 11px; line-height: 18px; color: #c9d1d9; overflow-x: auto; white-space: pre; }
+
+.divider { display: flex; align-items: center; gap: 8px; padding: 5px 12px; margin: 2px 0; }
+.divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: #21262d; }
+.divider span { font-size: 10px; color: #3d444d; white-space: nowrap; }
+
+.typing { padding: 4px 12px 6px; }
+.typing-hdr { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+.typing-dots { display: flex; gap: 4px; padding-left: 24px; }
+.tdot { width: 6px; height: 6px; border-radius: 50%; background: #3d444d; animation: pulse 1.4s ease-in-out infinite; }
+.tdot:nth-child(2) { animation-delay: .2s; }
+.tdot:nth-child(3) { animation-delay: .4s; }
+@keyframes pulse { 0%,80%,100%{transform:scale(1);background:#3d444d} 40%{transform:scale(1.3);background:#58a6ff} }
+
+.sugs { padding: 4px 12px 2px 36px; display: flex; flex-wrap: wrap; gap: 5px; }
+.sug { font-size: 11px; color: #58a6ff; border: 1px solid #21262d; border-radius: 10px; padding: 3px 9px; cursor: pointer; background: transparent; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+.sug:hover { background: #161b22; border-color: #3a6ea8; }
+
+/* chat input */
+.chat-input-area { border-top: 1px solid #21262d; padding: 10px 12px; background: #0d1117; flex-shrink: 0; }
+.ciw { background: #161b22; border: 1px solid #21262d; border-radius: 8px; display: flex; flex-direction: column; overflow: hidden; }
+.ciw:focus-within { border-color: #3a6ea8; }
+.ci-top { display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-bottom: 1px solid #21262d; font-size: 10.5px; color: #484f58; }
+.ci-top span { color: #58a6ff; }
+.ci-ta { background: transparent; border: none; outline: none; color: #c9d1d9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 12.5px; padding: 8px 10px; resize: none; height: 52px; line-height: 1.5; width: 100%; }
+.ci-ta::placeholder { color: #3d444d; }
+.ci-bot { display: flex; align-items: center; justify-content: space-between; padding: 4px 8px; border-top: 1px solid #21262d; }
+.ci-hints { display: flex; gap: 8px; font-size: 10px; color: #3d444d; }
+.ci-hints span { cursor: pointer; }
+.ci-send { width: 26px; height: 26px; border-radius: 5px; background: #1f6feb; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; color: white; }
+
+/* status bar */
+.statusbar { background: #1f6feb; display: flex; align-items: center; padding: 0 14px; font-size: 11.5px; color: rgba(255,255,255,0.88); justify-content: space-between; user-select: none; flex-shrink: 0; }
+.sb-l, .sb-r { display: flex; gap: 14px; align-items: center; }
+</style>
+</head>
+<body>
+<div class="ide">
+
+  <div class="titlebar">
+    <div class="traffic"><div class="tl r"></div><div class="tl y"></div><div class="tl g"></div></div>
+    <div class="tabs">
+      <div class="tab active"><div class="tab-dot"></div><span id="tab1">agent.ts</span></div>
+      <div class="tab">memory.ts</div>
+      <div class="tab">planner.ts</div>
+      <div class="tab">config.json</div>
+    </div>
+    <div class="title-center">Code-Robot-ALPHA — AI  Agent · feat/alpha-core</div>
+  </div>
+
+  <div class="main">
+    <div class="actbar">
+      <div class="ai on">📁</div><div class="ai">🔍</div><div class="ai">⎇</div>
+      <div class="ai">🧩</div><div class="ai">🐞</div>
+      <div class="ai" style="margin-top:auto">⚙️</div>
+    </div>
+
+    <div class="sidebar">
+      <div class="sb-hdr">Explorer</div>
+      <div class="folder"><span class="fa">▼</span> CODE-ROBOT-ALPHA</div>
+      <div class="folder"><span class="fa">▼</span> src</div>
+      <div class="ffile on"><span style="color:#4d9de0">🔷</span><span id="sf1name">agent.ts</span></div>
+      <div class="ffile"><span style="color:#4d9de0">🔷</span>index.ts</div>
+      <div class="ffile"><span style="color:#4d9de0">🔷</span>planner.ts</div>
+      <div class="ffile"><span style="color:#4d9de0">🔷</span>memory.ts</div>
+      <div class="ffile"><span style="color:#e3b341">🟡</span>config.json</div>
+      <div class="folder"><span class="fa">▼</span> utils</div>
+      <div class="ffile"><span style="color:#4d9de0">🔷</span>embeddings.ts</div>
+      <div class="ffile"><span style="color:#4d9de0">🔷</span>tools.ts</div>
+      <div class="ffile"><span style="color:#4d9de0">🔷</span>streaming.ts</div>
+      <div class="folder"><span class="fa">▶</span> tests</div>
+      <div class="folder"><span class="fa">▶</span> node_modules</div>
+      <div class="sb-div"></div>
+      <div class="sb-hdr">Outline</div>
+      <div class="ffile"><span style="color:#d2a8ff">◆</span>AgentCore</div>
+      <div class="ffile"><span style="color:#d2a8ff">ƒ</span>planTask</div>
+      <div class="ffile"><span style="color:#d2a8ff">ƒ</span>executeStep</div>
+      <div class="ffile"><span style="color:#d2a8ff">ƒ</span>retrieveMemory</div>
+      <div class="ffile"><span style="color:#d2a8ff">ƒ</span>handleToolCall</div>
+    </div>
+
+    <div class="editor-area">
+      <div class="editor">
+        <div class="breadcrumb">src <span class="bsep">›</span> <span class="bcur" id="breadcrumb">agent.ts</span></div>
+        <div class="code-wrap" id="codeWrap"><div class="code-inner" id="codeInner"></div></div>
+        <div class="minimap" id="minimap"></div>
+      </div>
+      <div class="terminal">
+        <div class="term-tabs">
+          <div class="ttab on">Terminal</div>
+          <div class="ttab">Output</div>
+          <div class="ttab">Problems <span style="background:#3fb950;color:#0d1117;border-radius:8px;padding:0 5px;font-size:10px;margin-left:3px">0</span></div>
+          <div class="ttab">Debug Console</div>
+        </div>
+        <div class="term-body" id="termBody"></div>
+      </div>
+    </div>
+
+    <!-- CHAT PANEL -->
+    <div class="chat-panel">
+      <div class="chat-header">
+        <div class="chat-logo">✦</div>
+        <div><div class="chat-title">Code-Robot-ALPHA Chat</div><div class="chat-sub">AI Assistant · alpha-core-v1</div></div>
+        <div class="chat-header-right"><div class="chi">⊕</div><div class="chi">⋯</div></div>
+      </div>
+      <div class="chat-context">
+        <div class="ctx-chip"><div class="ctx-dot"></div><span id="ctx-file">agent.ts</span></div>
+        <div class="ctx-chip">📂 src/</div>
+        <div class="ctx-chip">⎇ feat/alpha-core</div>
+      </div>
+      <div class="chat-messages" id="chatMessages"></div>
+      <div class="chat-input-area">
+        <div class="ciw">
+          <div class="ci-top">📎 <span id="ctx-tag">agent.ts</span></div>
+          <textarea class="ci-ta" placeholder="Ask Code-Robot-ALPHA anything about your code…"></textarea>
+          <div class="ci-bot">
+            <div class="ci-hints"><span>/ commands</span><span>@ mention</span><span># file</span></div>
+            <button class="ci-send">↑</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="statusbar">
+    <div class="sb-l"><span>⎇ &nbsp;feat/alpha-core</span><span>✓ 0 &nbsp;⚠ 0</span></div>
+    <div class="sb-r">
+      <span id="st-ln">Ln 1, Col 1</span>
+      <span>TypeScript</span><span>UTF-8</span><span>Spaces: 2</span>
+      <span id="st-status">⬤ Generating…</span>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══ TOKEN HELPERS ═══ */
+const sp = (c, v) => `<span class="${c}">${v}</span>`;
+const K  = v => sp('k', v);
+const FN = v => sp('fn', v);
+const S  = v => sp('s', v);
+const N  = v => sp('n', v);
+const CM = v => sp('cm', v);
+const TY = v => sp('ty', v);
+const PU = v => sp('pu', v);
+const PL = v => sp('pl', v);
+const IM = v => sp('im', v);
+const MO = v => sp('mo', v);
+
+/* ═══ CODE BLOCKS ═══ */
+const BLOCKS = [
+  [
+    IM('import')+PL(' ')+PU('{')+PL(' ')+TY('AgentConfig')+PU(',')+PL(' ')+TY('ToolCall')+PL(' ')+PU('}')+PL(' ')+IM('from')+PL(' ')+MO("'./types'"),
+    IM('import')+PL(' ')+PU('{')+PL(' ')+TY('MemoryStore')+PL(' ')+PU('}')+PL(' ')+IM('from')+PL(' ')+MO("'./utils/memory'"),
+    IM('import')+PL(' AIClient ')+IM('from')+PL(' ')+MO("''robot-core-sdk''"),
+    IM('import')+PL(' ')+PU('{')+PL(' EventEmitter ')+PU('}')+PL(' ')+IM('from')+PL(' ')+MO("'events'"),
+    '',
+  ],
+  [
+    CM('// Core agent state — persists across the planning loop'),
+    K('interface')+PL(' ')+TY('AgentState')+PL(' ')+PU('{'),
+    PL('  ')+N('sessionId')+PU(':')+PL(' ')+TY('string')+PU(';'),
+    PL('  ')+N('memory')+PU(':')+PL(' ')+TY('MemoryStore')+PU(';'),
+    PL('  ')+N('tools')+PU(':')+PL(' ')+TY('Map')+PU('<')+TY('string')+PU(', ')+TY('ToolDef')+PU('>;'),
+    PL('  ')+N('iteration')+PU(':')+PL(' ')+TY('number')+PU(';'),
+    PL('  ')+N('maxSteps')+PU(':')+PL(' ')+TY('number')+PU(';'),
+    PL('  ')+N('startTime')+PU(':')+PL(' ')+TY('Date')+PU(';'),
+    PU('}'),
+    '',
+  ],
+  [
+    K('export')+PL(' ')+K('class')+PL(' ')+TY('AgentCore')+PL(' ')+K('extends')+PL(' ')+TY('EventEmitter')+PL(' ')+PU('{'),
+    PL('  ')+K('private')+PL(' ')+N('client')+PU(':')+PL(' ')+TY('AIClient')+PU(';'),
+    PL('  ')+K('private')+PL(' ')+N('state')+PU(':')+PL(' ')+TY('AgentState')+PU(';'),
+    PL('  ')+K('private')+PL(' ')+N('config')+PU(':')+PL(' ')+TY('AgentConfig')+PU(';'),
+    '',
+    PL('  ')+FN('constructor')+PU('(')+N('config')+PU(':')+PL(' ')+TY('AgentConfig')+PU(') {'),
+    PL('    ')+K('super')+PU('();'),
+    PL('    ')+K('this')+PU('.')+N('client')+PL(' = ')+K('new')+PL(' ')+FN('AIClient')+PU('({ apiKey: config.apiKey });'),
+    PL('    ')+K('this')+PU('.')+N('config')+PL(' = config')+PU(';'),
+    PL('    ')+K('this')+PU('.')+N('state')+PL(' = ')+K('this')+PU('.')+FN('initState')+PU('();'),
+    PL('  }'),
+    '',
+  ],
+  [
+    PL('  ')+K('private')+PL(' ')+FN('initState')+PU('(): ')+TY('AgentState')+PL(' ')+PU('{'),
+    PL('    ')+K('return')+PL(' ')+PU('{'),
+    PL('      ')+N('sessionId')+PU(': crypto.')+FN('randomUUID')+PU('(),'),
+    PL('      ')+N('memory')+PU(': ')+K('new')+PL(' ')+FN('MemoryStore')+PU('(),'),
+    PL('      ')+N('tools')+PU(': ')+K('new')+PL(' ')+FN('Map')+PU('(),'),
+    PL('      ')+N('iteration')+PU(': ')+N('0')+PU(','),
+    PL('      ')+N('maxSteps')+PU(': this.config.maxIterations ?? ')+N('25')+PU(','),
+    PL('      ')+N('startTime')+PU(': ')+K('new')+PL(' ')+FN('Date')+PU('()'),
+    PL('    };'),
+    PL('  }'),
+    '',
+    PL('  ')+CM('// Decompose high-level goal into ordered task steps'),
+    PL('  ')+K('async')+PL(' ')+FN('planTask')+PU('(')+N('goal')+PU(':')+PL(' ')+TY('string')+PU('): ')+TY('Promise')+PU('<')+TY('TaskPlan')+PU('> {'),
+    PL('    ')+K('const')+PL(' response = ')+K('await')+PL(' ')+K('this')+PU('.')+N('client')+PU('.')+N('messages')+PU('.')+FN('create')+PU('({'),
+    PL('      ')+N('model')+PU(': ')+S('"alpha-core-v1-turbo"')+PU(','),
+    PL('      ')+N('max_tokens')+PU(': ')+N('8192')+PU(','),
+    PL('      ')+N('system')+PU(': ')+FN('buildSystemPrompt')+PU('(this.config),'),
+    PL('      ')+N('tools')+PU(': ')+K('this')+PU('.')+FN('getToolSchemas')+PU('(),'),
+    PL('      ')+N('messages')+PU(': [{ role: ')+S('"user"')+PU(', content: goal }]'),
+    PL('    });'),
+    PL('    ')+K('return')+PL(' ')+FN('parseTaskPlan')+PU('(response.content[0].text);'),
+    PL('  }'),
+    '',
+  ],
+  [
+    PL('  ')+CM('// Execute one step with streaming tool dispatch'),
+    PL('  ')+K('async')+PL(' ')+FN('executeStep')+PU('('),
+    PL('    ')+N('step')+PU(':')+PL(' ')+TY('PlanStep')+PU(','),
+    PL('    ')+N('ctx')+PU(':')+PL(' ')+TY('ExecutionContext'),
+    PL('  ')+PU('): ')+TY('Promise')+PU('<')+TY('StepResult')+PU('> {'),
+    PL('    ')+K('const')+PL(' memory = ')+K('await')+PL(' ')+K('this')+PU('.')+FN('retrieveMemory')+PU('(step.requiredCtx);'),
+    PL('    ')+K('const')+PL(' tools  = ')+K('this')+PU('.')+FN('resolveTools')+PU('(step.toolHints);'),
+    '',
+    PL('    ')+K('const')+PL(' stream = ')+K('this')+PU('.')+N('client')+PU('.')+N('messages')+PU('.')+FN('stream')+PU('({'),
+    PL('      ')+N('model')+PU(': this.config.model,'),
+    PL('      ')+N('tools')+PU(','),
+    PL('      ')+N('messages')+PU(': ')+FN('buildMessages')+PU('(step, ctx, memory)'),
+    PL('    });'),
+    '',
+    PL('    ')+K('for await')+PL(' ')+PU('(')+K('const')+PL(' event ')+K('of')+PL(' stream')+PU(') {'),
+    PL('      ')+K('if')+PL(' ')+PU('(event.type === ')+S('"content_block_delta"')+PU(') {'),
+    PL('        ')+K('this')+PU('.')+FN('emit')+PU('(')+S('"token"')+PU(', event.delta.text);'),
+    PL('      } ')+K('else if')+PL(' ')+PU('(event.type === ')+S('"tool_use"')+PU(') {'),
+    PL('        ')+K('await')+PL(' ')+K('this')+PU('.')+FN('handleToolCall')+PU('(event.tool);'),
+    PL('      }'),
+    PL('    }'),
+    '',
+    PL('    ')+K('this')+PU('.')+N('state')+PU('.')+N('iteration')+PU('++;'),
+    PL('    ')+K('return')+PL(' ')+K('this')+PU('.')+FN('buildResult')+PU('(stream);'),
+    PL('  }'),
+    '',
+  ],
+  [
+    PL('  ')+CM('// Semantic nearest-neighbour lookup via embeddings'),
+    PL('  ')+K('async')+PL(' ')+FN('retrieveMemory')+PU('(')+N('queries')+PU(':')+PL(' ')+TY('string[]')+PU('): ')+TY('Promise')+PU('<')+TY('MemoryChunk[]')+PU('> {'),
+    PL('    ')+K('const')+PL(' vecs = ')+K('await')+PL(' ')+FN('generateEmbeddings')+PU('(queries);'),
+    PL('    ')+K('return')+PL(' ')+K('this')+PU('.')+N('state')+PU('.')+N('memory')+PU('.')+FN('search')+PU('({'),
+    PL('      ')+N('embeddings')+PU(': vecs,'),
+    PL('      ')+N('topK')+PU(': ')+N('8')+PU(','),
+    PL('      ')+N('threshold')+PU(': ')+N('0.72'),
+    PL('    });'),
+    PL('  }'),
+    PU('}'),
+    '',
+  ],
+  [
+    CM('// Compose structured system prompt from agent config'),
+    K('function')+PL(' ')+FN('buildSystemPrompt')+PU('(')+N('cfg')+PU(':')+PL(' ')+TY('AgentConfig')+PU('): ')+TY('string')+PL(' ')+PU('{'),
+    PL('  ')+K('return')+PL(' ['),
+    PL('    ')+S('`You are ${cfg.name}, an autonomous AI agent.`')+PU(','),
+    PL('    ')+S('`Persona: ${cfg.persona}`')+PU(','),
+    PL('    ')+S('`Tools: ${cfg.tools.join(", ")}`')+PU(','),
+    PL('    ')+S('`Session: ${new Date().toISOString()}`'),
+    PL('  ].')+FN('join')+PU('(')+S('"\\n"')+PU(');'),
+    PU('}'),
+    '',
+  ],
+  [
+    CM('// Cosine similarity for embedding comparison'),
+    K('export')+PL(' ')+K('function')+PL(' ')+FN('cosineSimilarity')+PU('('),
+    PL('  ')+N('a')+PU(':')+PL(' ')+TY('number[]')+PU(','),
+    PL('  ')+N('b')+PU(':')+PL(' ')+TY('number[]'),
+    PU('): ')+TY('number')+PL(' ')+PU('{'),
+    PL('  ')+K('const')+PL(' dot  = a.')+FN('reduce')+PU('((s, v, i) => s + v * b[i], ')+N('0')+PU(');'),
+    PL('  ')+K('const')+PL(' magA = Math.')+FN('sqrt')+PU('(a.reduce((s, v) => s + v * v, ')+N('0')+PU('));'),
+    PL('  ')+K('const')+PL(' magB = Math.')+FN('sqrt')+PU('(b.reduce((s, v) => s + v * v, ')+N('0')+PU('));'),
+    PL('  ')+K('return')+PL(' dot / (magA * magB)')+PU(';'),
+    PU('}'),
+    '',
+  ],
+  [
+    CM('// Register built-in tools into the agent'),
+    K('export')+PL(' ')+K('function')+PL(' ')+FN('registerTools')+PU('(')+N('agent')+PU(':')+PL(' ')+TY('AgentCore')+PU('): ')+TY('void')+PL(' ')+PU('{'),
+    PL('  ')+K('const')+PL(' builtins')+PU(': ')+TY('ToolDef[]')+PL(' = ['),
+    PL('    { name: ')+S('"read_file"')+PU(', input_schema: ReadFileSchema },'),
+    PL('    { name: ')+S('"write_file"')+PU(', input_schema: WriteFileSchema },'),
+    PL('    { name: ')+S('"bash"')+PU(',       input_schema: BashSchema },'),
+    PL('    { name: ')+S('"web_search"')+PU(',  input_schema: SearchSchema },'),
+    PL('    { name: ')+S('"grep"')+PU(',       input_schema: GrepSchema },'),
+    PL('  ];'),
+    '',
+    PL('  builtins.')+FN('forEach')+PU('(t => agent.')+FN('registerTool')+PU('(t));'),
+    PU('}'),
+    '',
+  ],
+];
+
+const FILES = ['agent.ts','memory.ts','planner.ts','tools.ts','embeddings.ts'];
+
+/* ═══ CODE ENGINE ═══ */
+const codeInner = document.getElementById('codeInner');
+const codeWrap  = document.getElementById('codeWrap');
+const minimap   = document.getElementById('minimap');
+const stLn      = document.getElementById('st-ln');
+const stStatus  = document.getElementById('st-status');
+let lineCount = 0, blockIdx = 0, fileIdx = 0;
+
+function addCodeLine(html) {
+  lineCount++;
+  const d = document.createElement('div');
+  d.className = 'cln';
+  d.innerHTML = `<span class="cln-num">${lineCount}</span><span class="cln-code">${html}</span>`;
+  codeInner.appendChild(d);
+  const mm = document.createElement('div');
+  mm.className = 'mm';
+  mm.style.background = !html ? 'transparent'
+    : html.includes('"fn"') ? '#3a1f6e'
+    : html.includes('"s"') ? '#0e2d4a'
+    : html.includes('"k"') || html.includes('"im"') ? '#4a1218'
+    : '#21262d';
+  mm.style.width = !html ? '0' : (Math.random()*40+15)+'px';
+  minimap.appendChild(mm);
+  stLn.textContent = `Ln ${lineCount}, Col 1`;
+  return d;
+}
+
+function setCursor(el) {
+  document.querySelectorAll('.cln.cur,.cln.aln').forEach(e => e.classList.remove('cur','aln'));
+  if (el) el.classList.add('cur','aln');
+}
+
+const wait = ms => new Promise(r => setTimeout(r, ms));
+
+function lineDelay(html) {
+  if (!html) return 48;
+  const len = html.replace(/<[^>]+>/g,'').length;
+  return Math.min(35+len*3, 150) + (Math.random()*20-10);
+}
+
+async function typeBlock(block) {
+  for (const l of block) {
+    const el = addCodeLine(l);
+    setCursor(el);
+    codeWrap.scrollTop = codeWrap.scrollHeight;
+    await wait(lineDelay(l));
+  }
+}
+
+function switchFile() {
+  fileIdx = (fileIdx+1) % FILES.length;
+  const name = FILES[fileIdx];
+  document.getElementById('tab1').textContent = name;
+  document.getElementById('sf1name').textContent = name;
+  document.getElementById('breadcrumb').textContent = name;
+  document.getElementById('ctx-file').textContent = name;
+  document.getElementById('ctx-tag').textContent = name;
+}
+
+const MAX_LINES = 20000;
+
+function resetEditor() {
+  codeInner.innerHTML = '';
+  minimap.innerHTML = '';
+  lineCount = 0;
+  blockIdx = 0;
+  fileIdx = 0;
+  stLn.textContent = 'Ln 1, Col 1';
+  document.getElementById('tab1').textContent = FILES[0];
+  document.getElementById('sf1name').textContent = FILES[0];
+  document.getElementById('breadcrumb').textContent = FILES[0];
+  document.getElementById('ctx-file').textContent = FILES[0];
+  document.getElementById('ctx-tag').textContent = FILES[0];
+}
+
+function resetChat() {
+  chatMessages.innerHTML = '';
+}
+
+async function codeLoop() {
+  let iter = 0;
+  while (true) {
+    if (lineCount >= MAX_LINES) {
+      setCursor(null);
+      stStatus.textContent = '↺ Resetting…';
+      await wait(800);
+      resetEditor();
+      resetChat();
+      iter = 0;
+      chatScriptDone = false;
+      runChat();
+      await wait(400);
+    }
+    stStatus.textContent = '⬤ Generating…';
+    await typeBlock(BLOCKS[blockIdx % BLOCKS.length]);
+    blockIdx++; iter++;
+    setCursor(null);
+    stStatus.textContent = '◉ Idle';
+    await wait(600 + Math.random()*500);
+    if (iter % 3 === 0) { switchFile(); await wait(250); }
+  }
+}
+
+/* ═══ TERMINAL ═══ */
+const termBody = document.getElementById('termBody');
+function tline(html) {
+  const d = document.createElement('div');
+  d.innerHTML = html;
+  termBody.appendChild(d);
+  termBody.scrollTop = termBody.scrollHeight;
+}
+function ts() { return new Date().toLocaleTimeString('en-GB',{hour12:false}); }
+
+async function initTerminal() {
+  const boot = [
+    [150,  `<span class="tp">~/code-robot-alpha/src</span> <span class="tcmd">$ npx tsc --watch --strict</span>`],
+    [800,  `<span class="tdim">[${ts()}]</span> Starting compilation in watch mode…`],
+    [1500, `<span class="tok">[${ts()}]</span> Found 0 errors. Watching for file changes.`],
+    [2000, ''],
+  ];
+  for (const [d,h] of boot) { await wait(d); tline(h); }
+  setInterval(async () => {
+    tline(`<span class="tdim">[${ts()}]</span> File change detected. Starting incremental compilation…`);
+    await wait(360);
+    if (Math.random()>.7) tline(`<span class="twrn">[${ts()}]</span> src/${FILES[fileIdx]}(${~~(Math.random()*60+5)},${~~(Math.random()*20+1)}): warning TS6133: 'ctx' is declared but never read.`);
+    tline(`<span class="tok">[${ts()}]</span> Found 0 errors. Watching for file changes.`);
+  }, 11000);
+}
+
+/* ═══ CHAT PANEL ═══ */
+const chatMessages = document.getElementById('chatMessages');
+let chatScriptDone = false;
+
+function addDivider(txt) {
+  const d = document.createElement('div');
+  d.className = 'divider';
+  d.innerHTML = `<span>${txt}</span>`;
+  chatMessages.appendChild(d);
+}
+
+function addUserMsg(html) {
+  const d = document.createElement('div');
+  d.className = 'msg-user';
+  d.innerHTML = `<div class="msg-user-bubble">${html}</div>`;
+  chatMessages.appendChild(d);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function showTyping() {
+  const d = document.createElement('div');
+  d.className = 'typing'; d.id = 'typing-ind';
+  d.innerHTML = `<div class="typing-hdr"><div class="ai-av">✦</div><span class="ai-nm">Code-Robot-ALPHA</span></div><div class="typing-dots"><div class="tdot"></div><div class="tdot"></div><div class="tdot"></div></div>`;
+  chatMessages.appendChild(d);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function hideTyping() {
+  const t = document.getElementById('typing-ind');
+  if (t) t.remove();
+}
+
+function addAiMsg(body, sugs, code) {
+  hideTyping();
+  const now = new Date().toLocaleTimeString('en-GB',{hour12:false,hour:'2-digit',minute:'2-digit'});
+  const d = document.createElement('div');
+  d.className = 'msg-ai';
+  d.innerHTML = `<div class="msg-ai-hdr"><div class="ai-av">✦</div><span class="ai-nm">Code-Robot-ALPHA</span><span class="ai-ts">${now}</span></div><div class="msg-ai-body">${body}</div>`;
+  chatMessages.appendChild(d);
+  if (code) {
+    const cb = document.createElement('div');
+    cb.className = 'code-block';
+    cb.innerHTML = `<div class="cb-hdr"><span class="cb-lang">${code.lang}</span><span style="cursor:pointer;color:#484f58;font-size:10px">⎘ Copy</span></div><div class="cb-body">${code.code}</div>`;
+    chatMessages.appendChild(cb);
+  }
+  if (sugs && sugs.length) {
+    const sa = document.createElement('div');
+    sa.className = 'sugs';
+    sa.innerHTML = sugs.map(s=>`<button class="sug">${s}</button>`).join('');
+    chatMessages.appendChild(sa);
+  }
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+/* ── scripted chat sequence ── */
+const CHAT_SCRIPT = [
+  {d:1200,  f:'divider', v:'Today'},
+
+  /* scenario 1 — explain AgentCore */
+  {d:1500,  f:'user', v:'Can you explain what <code>AgentCore</code> does?'},
+  {d:2400,  f:'typing'},
+  {d:5500,  f:'ai',
+    body:`<span class="hl">AgentCore</span> is the central orchestration class for the agent loop. It wraps the AI client and manages three key concerns:<br><br>
+<b>1. Planning</b> — <code>planTask()</code> sends the goal to the model and parses a structured <code>TaskPlan</code> JSON with ordered steps.<br><br>
+<b>2. Execution</b> — <code>executeStep()</code> streams each step with tool dispatch, emitting <code>"token"</code> events as output arrives.<br><br>
+<b>3. Memory</b> — <code>retrieveMemory()</code> does embedding-based lookup so prior context stays in scope across iterations.`,
+    sugs:['Show initialization', 'How does streaming work?', 'Explain tool dispatch']},
+
+  /* scenario 2 — bootstrap index.ts */
+  {d:10000, f:'user', v:'How do I bootstrap it in <code>index.ts</code>?'},
+  {d:11200, f:'typing'},
+  {d:14800, f:'ai',
+    body:`Here's the minimal setup for <code>index.ts</code> — creates the agent, registers tools, and starts the planning loop:`,
+    code:{lang:'typescript', code:`<span style="color:#ff7b72">import</span> <span style="color:#ffa657">{ AgentCore }</span> <span style="color:#ff7b72">from</span> <span style="color:#a5d6ff">'./agent'</span>
+<span style="color:#ff7b72">import</span> <span style="color:#ffa657">{ registerTools }</span> <span style="color:#ff7b72">from</span> <span style="color:#a5d6ff">'./tools'</span>
+
+<span style="color:#ff7b72">const</span> agent = <span style="color:#ff7b72">new</span> <span style="color:#d2a8ff">AgentCore</span><span style="color:#8b949e">({</span>
+  <span style="color:#79c0ff">name</span><span style="color:#8b949e">:</span>          <span style="color:#a5d6ff">'Code-Robot-ALPHA'</span><span style="color:#8b949e">,</span>
+  <span style="color:#79c0ff">model</span><span style="color:#8b949e">:</span>         <span style="color:#a5d6ff">'alpha-core-v1-turbo'</span><span style="color:#8b949e">,</span>
+  <span style="color:#79c0ff">apiKey</span><span style="color:#8b949e">:</span>        process<span style="color:#8b949e">.</span>env<span style="color:#8b949e">.</span><span style="color:#79c0ff">ROBOT_API_KEY</span><span style="color:#8b949e">!,</span>
+  <span style="color:#79c0ff">maxIterations</span><span style="color:#8b949e">:</span> <span style="color:#79c0ff">25</span>
+<span style="color:#8b949e">})</span>
+
+<span style="color:#d2a8ff">registerTools</span><span style="color:#8b949e">(</span>agent<span style="color:#8b949e">)</span>
+<span style="color:#ff7b72">await</span> agent<span style="color:#8b949e">.</span><span style="color:#d2a8ff">planTask</span><span style="color:#8b949e">(</span><span style="color:#a5d6ff">'Analyse and refactor the payments module'</span><span style="color:#8b949e">)</span>`},
+    sugs:['Add error handling', 'Stream output to UI', 'tsconfig setup']},
+
+  /* scenario 3 — JSDoc */
+  {d:22000, f:'user', v:'Add JSDoc to <code>executeStep</code> please.'},
+  {d:23400, f:'typing'},
+  {d:27000, f:'ai',
+    body:`Here's the full JSDoc for <code>executeStep</code> with param docs, return type, and a <code>@throws</code> clause:`,
+    code:{lang:'typescript', code:`<span style="color:#484f58">/**
+ * Execute a single reasoning step with streaming tool dispatch.
+ *
+ * @param step - Plan step to execute. Carries tool hints and
+ *               the required memory context keys.
+ * @param ctx  - Execution context with prior step results and
+ *               the full conversation history.
+ * @returns    StepResult containing output text, tool call
+ *             logs, and the updated iteration counter.
+ * @throws     {AgentError} If maxSteps is exceeded or a
+ *             required tool is unavailable at runtime.
+ */</span>
+<span style="color:#ff7b72">async</span> <span style="color:#d2a8ff">executeStep</span><span style="color:#8b949e">(</span>
+  step<span style="color:#8b949e">:</span> <span style="color:#ffa657">PlanStep</span><span style="color:#8b949e">,</span>
+  ctx<span style="color:#8b949e">:</span>  <span style="color:#ffa657">ExecutionContext</span>
+<span style="color:#8b949e">):</span> <span style="color:#ffa657">Promise</span><span style="color:#8b949e">&lt;</span><span style="color:#ffa657">StepResult</span><span style="color:#8b949e">&gt;</span>`},
+    sugs:['Apply to all methods', 'Generate unit tests', 'Add error types']},
+
+  /* scenario 4 — unit test generation */
+  {d:35000, f:'user', v:'Generate a unit test for <code>cosineSimilarity</code>.'},
+  {d:36300, f:'typing'},
+  {d:40000, f:'ai',
+    body:`Here's a Jest test suite for <code>cosineSimilarity</code> — covers identical vectors, orthogonal vectors, and a known angle:`,
+    code:{lang:'typescript', code:`<span style="color:#ff7b72">import</span> <span style="color:#ffa657">{ cosineSimilarity }</span> <span style="color:#ff7b72">from</span> <span style="color:#a5d6ff">'../utils/embeddings'</span>
+
+<span style="color:#d2a8ff">describe</span><span style="color:#8b949e">(</span><span style="color:#a5d6ff">'cosineSimilarity'</span><span style="color:#8b949e">, () => {</span>
+  <span style="color:#d2a8ff">it</span><span style="color:#8b949e">(</span><span style="color:#a5d6ff">'returns 1 for identical vectors'</span><span style="color:#8b949e">, () => {</span>
+    <span style="color:#ff7b72">const</span> v <span style="color:#8b949e">=</span> <span style="color:#8b949e">[</span><span style="color:#79c0ff">1</span><span style="color:#8b949e">,</span> <span style="color:#79c0ff">0</span><span style="color:#8b949e">,</span> <span style="color:#79c0ff">1</span><span style="color:#8b949e">]</span>
+    <span style="color:#d2a8ff">expect</span><span style="color:#8b949e">(</span><span style="color:#d2a8ff">cosineSimilarity</span><span style="color:#8b949e">(</span>v<span style="color:#8b949e">,</span> v<span style="color:#8b949e">)).</span><span style="color:#d2a8ff">toBeCloseTo</span><span style="color:#8b949e">(</span><span style="color:#79c0ff">1</span><span style="color:#8b949e">)</span>
+  <span style="color:#8b949e">})</span>
+  <span style="color:#d2a8ff">it</span><span style="color:#8b949e">(</span><span style="color:#a5d6ff">'returns 0 for orthogonal vectors'</span><span style="color:#8b949e">, () => {</span>
+    <span style="color:#d2a8ff">expect</span><span style="color:#8b949e">(</span><span style="color:#d2a8ff">cosineSimilarity</span><span style="color:#8b949e">([</span><span style="color:#79c0ff">1</span><span style="color:#8b949e">,</span><span style="color:#79c0ff">0</span><span style="color:#8b949e">], [</span><span style="color:#79c0ff">0</span><span style="color:#8b949e">,</span><span style="color:#79c0ff">1</span><span style="color:#8b949e">])).</span><span style="color:#d2a8ff">toBeCloseTo</span><span style="color:#8b949e">(</span><span style="color:#79c0ff">0</span><span style="color:#8b949e">)</span>
+  <span style="color:#8b949e">})</span>
+  <span style="color:#d2a8ff">it</span><span style="color:#8b949e">(</span><span style="color:#a5d6ff">'handles 45° angle correctly'</span><span style="color:#8b949e">, () => {</span>
+    <span style="color:#d2a8ff">expect</span><span style="color:#8b949e">(</span><span style="color:#d2a8ff">cosineSimilarity</span><span style="color:#8b949e">([</span><span style="color:#79c0ff">1</span><span style="color:#8b949e">,</span><span style="color:#79c0ff">1</span><span style="color:#8b949e">], [</span><span style="color:#79c0ff">1</span><span style="color:#8b949e">,</span><span style="color:#79c0ff">0</span><span style="color:#8b949e">])).</span><span style="color:#d2a8ff">toBeCloseTo</span><span style="color:#8b949e">(</span><span style="color:#79c0ff">0.707</span><span style="color:#8b949e">, </span><span style="color:#79c0ff">2</span><span style="color:#8b949e">)</span>
+  <span style="color:#8b949e">})</span>
+<span style="color:#8b949e">})</span>`},
+    sugs:['Test retrieveMemory', 'Add edge cases', 'Set up Jest config']},
+
+  /* scenario 5 — hybrid search */
+  {d:48000, f:'user', v:'Refactor <code>retrieveMemory</code> for hybrid dense + sparse search.'},
+  {d:49500, f:'typing'},
+  {d:53500, f:'ai',
+    body:`Hybrid search blends <span class="hl">dense vector retrieval</span> with <span class="hl">sparse BM25 keyword matching</span>. This helps when query terms are short or highly specific — dense embeddings alone can miss exact token matches.<br><br>
+I'll update <code>MemoryStore.search()</code> to accept a <code>mode</code> parameter and merge ranked results using RRF (Reciprocal Rank Fusion) at <code>k=60</code>:`,
+    code:{lang:'typescript', code:`<span style="color:#ff7b72">type</span> <span style="color:#ffa657">SearchMode</span> <span style="color:#8b949e">=</span> <span style="color:#a5d6ff">'dense'</span> <span style="color:#8b949e">|</span> <span style="color:#a5d6ff">'sparse'</span> <span style="color:#8b949e">|</span> <span style="color:#a5d6ff">'hybrid'</span>
+
+<span style="color:#ff7b72">async</span> <span style="color:#d2a8ff">search</span><span style="color:#8b949e">(</span>opts<span style="color:#8b949e">: {</span>
+  embeddings<span style="color:#8b949e">:</span> <span style="color:#ffa657">number</span><span style="color:#8b949e">[][],</span>
+  query<span style="color:#8b949e">:</span>      <span style="color:#ffa657">string</span><span style="color:#8b949e">,</span>
+  topK<span style="color:#8b949e">:</span>       <span style="color:#ffa657">number</span><span style="color:#8b949e">,</span>
+  mode<span style="color:#8b949e">:</span>       <span style="color:#ffa657">SearchMode</span>
+<span style="color:#8b949e">}): </span><span style="color:#ffa657">Promise</span><span style="color:#8b949e">&lt;</span><span style="color:#ffa657">MemoryChunk</span><span style="color:#8b949e">[]&gt; {</span>
+  <span style="color:#ff7b72">const</span> dense  <span style="color:#8b949e">=</span> <span style="color:#ff7b72">await</span> <span style="color:#ff7b72">this</span><span style="color:#8b949e">.</span><span style="color:#d2a8ff">vectorSearch</span><span style="color:#8b949e">(</span>opts<span style="color:#8b949e">.</span>embeddings<span style="color:#8b949e">)</span>
+  <span style="color:#ff7b72">const</span> sparse <span style="color:#8b949e">=</span> <span style="color:#ff7b72">await</span> <span style="color:#ff7b72">this</span><span style="color:#8b949e">.</span><span style="color:#d2a8ff">bm25Search</span><span style="color:#8b949e">(</span>opts<span style="color:#8b949e">.</span>query<span style="color:#8b949e">)</span>
+  <span style="color:#ff7b72">return</span> <span style="color:#d2a8ff">rrfMerge</span><span style="color:#8b949e">(</span>dense<span style="color:#8b949e">,</span> sparse<span style="color:#8b949e">, {</span> k<span style="color:#8b949e">:</span> <span style="color:#79c0ff">60</span><span style="color:#8b949e">,</span> topK<span style="color:#8b949e">:</span> opts<span style="color:#8b949e">.</span>topK <span style="color:#8b949e">})</span>
+<span style="color:#8b949e">}</span>`},
+    sugs:['Show RRF formula', 'Add threshold filter', 'Benchmark both modes']},
+
+  /* scenario 6 — error boundaries */
+  {d:62000, f:'user', v:'How should I handle errors in the agent loop?'},
+  {d:63500, f:'typing'},
+  {d:67500, f:'ai',
+    body:`Wrap each <code>executeStep</code> call in a try/catch and classify errors into two buckets:<br><br>
+<b>Retryable</b> — rate limits, transient network failures, tool timeouts. Use exponential backoff with a cap of 3 retries.<br><br>
+<b>Fatal</b> — invalid plan JSON, missing required tool, <code>maxSteps</code> exceeded. Log and halt the loop immediately.<br><br>
+Here's a minimal error boundary wrapper:`,
+    code:{lang:'typescript', code:`<span style="color:#ff7b72">async</span> <span style="color:#d2a8ff">runWithRetry</span><span style="color:#8b949e">(</span>
+  fn<span style="color:#8b949e">: () =&gt;</span> <span style="color:#ffa657">Promise</span><span style="color:#8b949e">&lt;</span><span style="color:#ffa657">StepResult</span><span style="color:#8b949e">&gt;,</span>
+  retries <span style="color:#8b949e">=</span> <span style="color:#79c0ff">3</span>
+<span style="color:#8b949e">): </span><span style="color:#ffa657">Promise</span><span style="color:#8b949e">&lt;</span><span style="color:#ffa657">StepResult</span><span style="color:#8b949e">&gt; {</span>
+  <span style="color:#ff7b72">for</span> <span style="color:#8b949e">(</span><span style="color:#ff7b72">let</span> i <span style="color:#8b949e">=</span> <span style="color:#79c0ff">0</span><span style="color:#8b949e">;</span> i <span style="color:#8b949e">&lt;</span> retries<span style="color:#8b949e">;</span> i<span style="color:#8b949e">++) {</span>
+    <span style="color:#ff7b72">try</span> <span style="color:#8b949e">{</span>
+      <span style="color:#ff7b72">return</span> <span style="color:#ff7b72">await</span> <span style="color:#d2a8ff">fn</span><span style="color:#8b949e">()</span>
+    <span style="color:#8b949e">}</span> <span style="color:#ff7b72">catch</span> <span style="color:#8b949e">(</span>err<span style="color:#8b949e">) {</span>
+      <span style="color:#ff7b72">if</span> <span style="color:#8b949e">(!</span><span style="color:#d2a8ff">isRetryable</span><span style="color:#8b949e">(</span>err<span style="color:#8b949e">)</span> <span style="color:#8b949e">||</span> i <span style="color:#8b949e">===</span> retries <span style="color:#8b949e">-</span> <span style="color:#79c0ff">1</span><span style="color:#8b949e">)</span> <span style="color:#ff7b72">throw</span> err
+      <span style="color:#ff7b72">await</span> <span style="color:#d2a8ff">wait</span><span style="color:#8b949e">(</span><span style="color:#79c0ff">2</span> <span style="color:#8b949e">**</span> i <span style="color:#8b949e">*</span> <span style="color:#79c0ff">500</span><span style="color:#8b949e">)</span>
+    <span style="color:#8b949e">}</span>
+  <span style="color:#8b949e">}</span>
+  <span style="color:#ff7b72">throw</span> <span style="color:#ff7b72">new</span> <span style="color:#d2a8ff">AgentError</span><span style="color:#8b949e">(</span><span style="color:#a5d6ff">'Max retries exceeded'</span><span style="color:#8b949e">)</span>
+<span style="color:#8b949e">}</span>`},
+    sugs:['Add circuit breaker', 'Log to observability', 'Custom error types']},
+
+  /* scenario 7 — streaming UI */
+  {d:76000, f:'user', v:'How do I stream agent output to a React UI in real time?'},
+  {d:77500, f:'typing'},
+  {d:82000, f:'ai',
+    body:`Listen to the <code>"token"</code> events emitted by <code>AgentCore</code> and append each chunk to React state. Use a <code>useRef</code> buffer to avoid excessive re-renders on every character:`,
+    code:{lang:'typescript', code:`<span style="color:#ff7b72">export function</span> <span style="color:#d2a8ff">AgentOutput</span><span style="color:#8b949e">({ agent }: {</span> agent<span style="color:#8b949e">:</span> <span style="color:#ffa657">AgentCore</span> <span style="color:#8b949e">}) {</span>
+  <span style="color:#ff7b72">const</span> <span style="color:#8b949e">[</span>output<span style="color:#8b949e">,</span> setOutput<span style="color:#8b949e">]</span> <span style="color:#8b949e">=</span> <span style="color:#d2a8ff">useState</span><span style="color:#8b949e">(</span><span style="color:#a5d6ff">''</span><span style="color:#8b949e">)</span>
+  <span style="color:#ff7b72">const</span> buf <span style="color:#8b949e">=</span> <span style="color:#d2a8ff">useRef</span><span style="color:#8b949e">(</span><span style="color:#a5d6ff">''</span><span style="color:#8b949e">)</span>
+
+  <span style="color:#d2a8ff">useEffect</span><span style="color:#8b949e">(() => {</span>
+    <span style="color:#ff7b72">const</span> <span style="color:#d2a8ff">flush</span> <span style="color:#8b949e">=</span> <span style="color:#d2a8ff">throttle</span><span style="color:#8b949e">(() =&gt;</span> <span style="color:#d2a8ff">setOutput</span><span style="color:#8b949e">(</span>buf<span style="color:#8b949e">.</span>current<span style="color:#8b949e">),</span> <span style="color:#79c0ff">60</span><span style="color:#8b949e">)</span>
+    agent<span style="color:#8b949e">.</span><span style="color:#d2a8ff">on</span><span style="color:#8b949e">(</span><span style="color:#a5d6ff">'token'</span><span style="color:#8b949e">,</span> tok <span style="color:#8b949e">=&gt; {</span>
+      buf<span style="color:#8b949e">.</span>current <span style="color:#8b949e">+=</span> tok
+      <span style="color:#d2a8ff">flush</span><span style="color:#8b949e">()</span>
+    <span style="color:#8b949e">})</span>
+    <span style="color:#ff7b72">return</span> <span style="color:#8b949e">() =&gt;</span> agent<span style="color:#8b949e">.</span><span style="color:#d2a8ff">removeAllListeners</span><span style="color:#8b949e">(</span><span style="color:#a5d6ff">'token'</span><span style="color:#8b949e">)</span>
+  <span style="color:#8b949e">}, [</span>agent<span style="color:#8b949e">])</span>
+
+  <span style="color:#ff7b72">return</span> <span style="color:#8b949e">&lt;</span>pre<span style="color:#8b949e">&gt;{</span>output<span style="color:#8b949e">}&lt;/</span>pre<span style="color:#8b949e">&gt;</span>
+<span style="color:#8b949e">}</span>`},
+    sugs:['Add markdown rendering', 'Show tool call badges', 'Stop / cancel stream']},
+];
+
+/* ── infinite loop pool (cycles after script ends) ── */
+const LOOP_ROUNDS = [
+  {
+    user: 'Can you add input validation to <code>planTask</code>?',
+    thinkMs: 4200,
+    body: `Good call — <code>planTask</code> should validate the goal string before hitting the model. Check for empty input, trim whitespace, and enforce a max length to avoid token waste:`,
+    code:{lang:'typescript', code:`<span style="color:#ff7b72">async</span> <span style="color:#d2a8ff">planTask</span><span style="color:#8b949e">(</span>goal<span style="color:#8b949e">:</span> <span style="color:#ffa657">string</span><span style="color:#8b949e">): </span><span style="color:#ffa657">Promise</span><span style="color:#8b949e">&lt;</span><span style="color:#ffa657">TaskPlan</span><span style="color:#8b949e">&gt; {</span>
+  <span style="color:#ff7b72">const</span> g <span style="color:#8b949e">=</span> goal<span style="color:#8b949e">.</span><span style="color:#d2a8ff">trim</span><span style="color:#8b949e">()</span>
+  <span style="color:#ff7b72">if</span> <span style="color:#8b949e">(!</span>g<span style="color:#8b949e">)</span> <span style="color:#ff7b72">throw</span> <span style="color:#ff7b72">new</span> <span style="color:#d2a8ff">AgentError</span><span style="color:#8b949e">(</span><span style="color:#a5d6ff">'Goal cannot be empty'</span><span style="color:#8b949e">)</span>
+  <span style="color:#ff7b72">if</span> <span style="color:#8b949e">(</span>g<span style="color:#8b949e">.</span>length <span style="color:#8b949e">&gt;</span> <span style="color:#79c0ff">2000</span><span style="color:#8b949e">)</span> <span style="color:#ff7b72">throw</span> <span style="color:#ff7b72">new</span> <span style="color:#d2a8ff">AgentError</span><span style="color:#8b949e">(</span><span style="color:#a5d6ff">'Goal exceeds 2000 chars'</span><span style="color:#8b949e">)</span>
+  <span style="color:#ff7b72">return</span> <span style="color:#ff7b72">this</span><span style="color:#8b949e">.</span><span style="color:#d2a8ff">_plan</span><span style="color:#8b949e">(</span>g<span style="color:#8b949e">)</span>
+<span style="color:#8b949e">}</span>`},
+    sugs:['Add schema validation', 'Sanitize special chars', 'Log rejected goals'],
+  },
+  {
+    user: 'What\'s the best way to cache embedding results?',
+    thinkMs: 4800,
+    body: `Cache embeddings by a hash of the input string — identical queries hit the cache instantly. Use an LRU map with a bounded size so memory doesn't grow unbounded:`,
+    code:{lang:'typescript', code:`<span style="color:#ff7b72">import</span> <span style="color:#ffa657">{ LRUCache }</span> <span style="color:#ff7b72">from</span> <span style="color:#a5d6ff">'lru-cache'</span>
+
+<span style="color:#ff7b72">const</span> cache <span style="color:#8b949e">=</span> <span style="color:#ff7b72">new</span> <span style="color:#d2a8ff">LRUCache</span><span style="color:#8b949e">&lt;</span><span style="color:#ffa657">string</span><span style="color:#8b949e">,</span> <span style="color:#ffa657">number</span><span style="color:#8b949e">[]&gt;({</span> max<span style="color:#8b949e">:</span> <span style="color:#79c0ff">1000</span> <span style="color:#8b949e">})</span>
+
+<span style="color:#ff7b72">async function</span> <span style="color:#d2a8ff">cachedEmbed</span><span style="color:#8b949e">(</span>text<span style="color:#8b949e">:</span> <span style="color:#ffa657">string</span><span style="color:#8b949e">): </span><span style="color:#ffa657">Promise</span><span style="color:#8b949e">&lt;</span><span style="color:#ffa657">number</span><span style="color:#8b949e">[]&gt; {</span>
+  <span style="color:#ff7b72">const</span> key <span style="color:#8b949e">=</span> <span style="color:#d2a8ff">hashString</span><span style="color:#8b949e">(</span>text<span style="color:#8b949e">)</span>
+  <span style="color:#ff7b72">if</span> <span style="color:#8b949e">(</span>cache<span style="color:#8b949e">.</span><span style="color:#d2a8ff">has</span><span style="color:#8b949e">(</span>key<span style="color:#8b949e">))</span> <span style="color:#ff7b72">return</span> cache<span style="color:#8b949e">.</span><span style="color:#d2a8ff">get</span><span style="color:#8b949e">(</span>key<span style="color:#8b949e">)!</span>
+  <span style="color:#ff7b72">const</span> vec <span style="color:#8b949e">=</span> <span style="color:#ff7b72">await</span> <span style="color:#d2a8ff">generateEmbedding</span><span style="color:#8b949e">(</span>text<span style="color:#8b949e">)</span>
+  cache<span style="color:#8b949e">.</span><span style="color:#d2a8ff">set</span><span style="color:#8b949e">(</span>key<span style="color:#8b949e">,</span> vec<span style="color:#8b949e">)</span>
+  <span style="color:#ff7b72">return</span> vec
+<span style="color:#8b949e">}</span>`},
+    sugs:['Persist cache to disk', 'TTL-based expiry', 'Cache hit metrics'],
+  },
+  {
+    user: 'How do I add a timeout to <code>executeStep</code>?',
+    thinkMs: 3800,
+    body: `Race the step against a <code>setTimeout</code> promise. If the step doesn't resolve in time, abort it and throw a <code>TimeoutError</code> so the retry wrapper can handle it:`,
+    code:{lang:'typescript', code:`<span style="color:#ff7b72">function</span> <span style="color:#d2a8ff">withTimeout</span><span style="color:#8b949e">&lt;</span>T<span style="color:#8b949e">&gt;(</span>
+  p<span style="color:#8b949e">:</span> <span style="color:#ffa657">Promise</span><span style="color:#8b949e">&lt;</span>T<span style="color:#8b949e">&gt;,</span>
+  ms<span style="color:#8b949e">:</span> <span style="color:#ffa657">number</span>
+<span style="color:#8b949e">): </span><span style="color:#ffa657">Promise</span><span style="color:#8b949e">&lt;</span>T<span style="color:#8b949e">&gt; {</span>
+  <span style="color:#ff7b72">const</span> timer <span style="color:#8b949e">=</span> <span style="color:#ff7b72">new</span> <span style="color:#d2a8ff">Promise</span><span style="color:#8b949e">&lt;</span><span style="color:#ff7b72">never</span><span style="color:#8b949e">&gt;((</span>_<span style="color:#8b949e">,</span> rej<span style="color:#8b949e">) =&gt;</span>
+    <span style="color:#d2a8ff">setTimeout</span><span style="color:#8b949e">(() =&gt;</span> rej<span style="color:#8b949e">(</span><span style="color:#ff7b72">new</span> <span style="color:#d2a8ff">TimeoutError</span><span style="color:#8b949e">(</span><span style="color:#a5d6ff">\`Step timed out after \${ms}ms\`</span><span style="color:#8b949e">)),</span> ms<span style="color:#8b949e">)</span>
+  <span style="color:#8b949e">)</span>
+  <span style="color:#ff7b72">return</span> <span style="color:#ffa657">Promise</span><span style="color:#8b949e">.</span><span style="color:#d2a8ff">race</span><span style="color:#8b949e">([</span>p<span style="color:#8b949e">,</span> timer<span style="color:#8b949e">])</span>
+<span style="color:#8b949e">}</span>
+
+<span style="color:#8b949e">// usage inside executeStep:</span>
+<span style="color:#ff7b72">return</span> <span style="color:#d2a8ff">withTimeout</span><span style="color:#8b949e">(</span><span style="color:#ff7b72">this</span><span style="color:#8b949e">.</span><span style="color:#d2a8ff">_execute</span><span style="color:#8b949e">(</span>step<span style="color:#8b949e">,</span> ctx<span style="color:#8b949e">),</span> <span style="color:#79c0ff">30_000</span><span style="color:#8b949e">)</span>`},
+    sugs:['Configurable timeout', 'Cancel in-flight requests', 'Retry on timeout'],
+  },
+];
+
+let loopRoundIdx = 0;
+
+async function runChat() {
+  chatScriptDone = false;
+  for (const step of CHAT_SCRIPT) {
+    if (chatScriptDone) return;
+    await wait(step.d);
+    if (chatScriptDone) return;
+    if      (step.f==='divider') addDivider(step.v);
+    else if (step.f==='user')    addUserMsg(step.v);
+    else if (step.f==='typing')  showTyping();
+    else if (step.f==='ai')      addAiMsg(step.body, step.sugs, step.code);
+  }
+  while (!chatScriptDone) {
+    await wait(13000);
+    if (chatScriptDone) return;
+    const round = LOOP_ROUNDS[loopRoundIdx % LOOP_ROUNDS.length];
+    loopRoundIdx++;
+    addUserMsg(round.user);
+    await wait(1300); if (chatScriptDone) return;
+    showTyping();
+    await wait(round.thinkMs); if (chatScriptDone) return;
+    addAiMsg(round.body, round.sugs, round.code);
+  }
+}
+
+codeLoop();
+initTerminal();
+runChat();
+</script>
+</body>
+</html>
